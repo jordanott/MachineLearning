@@ -77,7 +77,7 @@ class logisticClassify2(ml.classifier):
     def sigmoid(self, z):
         return 1 / (1 + np.exp(-z))
     
-    def train(self, X, Y, initStep=1.0, stopTol=1e-4, stopEpochs=5000, plot=None):
+    def train(self, X, Y, initStep=1.0, stopTol=1e-4, stopEpochs=5000, plot=None, alpha=0):
         """ Train the logistic regression using stochastic gradient descent """
         M,N = X.shape;                     # initialize the model if necessary:
         self.classes = np.unique(Y);       # Y may have two classes, any values
@@ -85,14 +85,13 @@ class logisticClassify2(ml.classifier):
         YY = ml.toIndex(Y,self.classes);   # YY is Y, but with canonical values 0 or 1
         if len(self.theta)!=N+1: self.theta=np.random.rand(N+1);
         # init loop variables:
-        print(XX.shape, self.theta.shape)
         epoch=0; done=False; Jnll=[]; J01=[];
         while not done:
             stepsize, epoch = initStep*2.0/(2.0+epoch), epoch+1; # update stepsize
             # Do an SGD pass through the entire data set:
             for i in np.random.permutation(M):
                 ri    = self.sigmoid(np.dot(XX[i], self.theta));     # TODO: compute linear response r(x)
-                gradi = -(YY[i] - ri) * XX[i];     # TODO: compute gradient of NLL loss
+                gradi = -(YY[i] - ri) * XX[i] + alpha * self.theta;     # TODO: compute gradient of NLL loss
                 self.theta -= stepsize * gradi;  # take a gradient step
                 
                 
@@ -106,18 +105,21 @@ class logisticClassify2(ml.classifier):
                 Jsur += np.log(ri + 1e-4) if YY[i]==1 else np.log(1 - ri + 1e-4)
                 
             Jnll.append( -Jsur / M ) # TODO evaluate the current NLL loss
-            plt.figure(1); plt.plot(Jnll,'b-',J01,'r-'); plt.draw();    # plot losses
-            if N==2: plt.figure(2); self.plotBoundary(X,Y); plt.draw(); # & predictor if 2D
-            plt.pause(.01);                    # let OS draw the plot
+            
 
             ## For debugging: you may want to print current parameters & losses
-            print (self.theta, ' => ', Jnll[-1], ' / ', J01[-1])
+            
             # raw_input()   # pause for keystroke
             #
             if epoch > 1:
                 if epoch > stopEpochs or np.abs(Jnll[-2] - Jnll[-1]) < stopTol:
                     done = True;  
-
+        # plot when training is over
+        plt.figure(1); plt.plot(Jnll,'b-',J01,'r-'); plt.draw();    # plot losses
+        if N==2: plt.figure(2); self.plotBoundary(X,Y); plt.draw(); # & predictor if 2D
+        plt.pause(.01);                    # let OS draw the plot
+        
+        print (self.theta, ' => ', Jnll[-1], ' / ', J01[-1])
 
 ################################################################################
 ################################################################################
