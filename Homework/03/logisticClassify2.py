@@ -39,13 +39,16 @@ class logisticClassify2(ml.classifier):
     def plotBoundary(self,X,Y):
         """ Plot the (linear) decision boundary of the classifier, along with data """
         if len(self.theta) != 3: raise ValueError('Data & model must be 2D');
-        ax = X.min(0),X.max(0); ax = (ax[0][0],ax[1][0],ax[0][1],ax[1][1]);
+        ax = X.min(0),X.max(0); ax = (ax[0][0],ax[1][0],ax[0][1],ax[1][1]); 
         ## TODO: find points on decision boundary defined by theta0 + theta1 X1 + theta2 X2 == 0
         x1b = np.array([ax[0],ax[1]]);  # at X1 = points in x1b
-        x2b = NotImplementedError;      # TODO find x2 values as a function of x1's values
+        
+        # TODO find x2 values as a function of x1's values
+        x2b = -(self.theta[0] + self.theta[1] * x1b)/self.theta[2]
+        
         ## Now plot the data and the resulting boundary:
         A = Y==self.classes[0]; # and plot it:
-        plt.plot(X[A,0],X[A,1],'b.',X[-A,0],X[-A,1],'r.',x1b,x2b,'k-'); plt.axis(ax); plt.draw();
+        plt.plot(X[A,0],X[A,1],'b.',X[~A,0],X[~A,1],'r.',x1b,x2b,'k-'); plt.axis(ax); plt.draw();
 
     def predictSoft(self, X):
         """ Return the probability of each class under logistic regression """
@@ -55,16 +58,25 @@ class logisticClassify2(ml.classifier):
         ## P[:,1] = probability of class 1 = sigma( theta*X )
         ## P[:,0] = 1 - P[:,1] = probability of class 0
         return P
+    
+    def err(self, X, Y):
+        Yhat = self.predict(X)
+        err = 1 - np.sum(Yhat == Y) / float(Yhat.shape[0])
+        return err
 
     def predict(self, X):
         """ Return the predictied class of each data point in X"""
-        raise NotImplementedError
+        #raise NotImplementedError
         ## TODO: compute linear response r[i] = theta0 + theta1 X[i,1] + theta2 X[i,2] + ... for each i
+        r = self.theta[0] + self.theta[1] * X[:,0] + self.theta[2] * X[:,1]
         ## TODO: if z[i] > 0, predict class 1:  Yhat[i] = self.classes[1]
+        Yhat = r > 0
         ##       else predict class 0:  Yhat[i] = self.classes[0]
         return Yhat
 
-
+    def sigmoid(self, z):
+        return 1 / (1 + np.exp(-z))
+    
     def train(self, X, Y, initStep=1.0, stopTol=1e-4, stopEpochs=5000, plot=None):
         """ Train the logistic regression using stochastic gradient descent """
         M,N = X.shape;                     # initialize the model if necessary:
@@ -73,30 +85,38 @@ class logisticClassify2(ml.classifier):
         YY = ml.toIndex(Y,self.classes);   # YY is Y, but with canonical values 0 or 1
         if len(self.theta)!=N+1: self.theta=np.random.rand(N+1);
         # init loop variables:
+        print(XX.shape, self.theta.shape)
         epoch=0; done=False; Jnll=[]; J01=[];
         while not done:
             stepsize, epoch = initStep*2.0/(2.0+epoch), epoch+1; # update stepsize
             # Do an SGD pass through the entire data set:
             for i in np.random.permutation(M):
-                ri    = NotImplementedError;     # TODO: compute linear response r(x)
-                gradi = NotImplementedError;     # TODO: compute gradient of NLL loss
+                ri    = self.sigmoid(np.dot(XX[i], self.theta));     # TODO: compute linear response r(x)
+                gradi = -(YY[i] - ri) * XX[i];     # TODO: compute gradient of NLL loss
                 self.theta -= stepsize * gradi;  # take a gradient step
-
+                
+                
             J01.append( self.err(X,Y) )  # evaluate the current error rate
 
             ## TODO: compute surrogate loss (logistic negative log-likelihood)
             ##  Jsur = sum_i [ (log si) if yi==1 else (log(1-si)) ]
-            Jnll.append( NotImplementedError ) # TODO evaluate the current NLL loss
+            Jsur = 0
+            for i in np.random.permutation(M):
+                ri    = self.sigmoid(np.dot(XX[i], self.theta));
+                Jsur += np.log(ri + 1e-4) if YY[i]==1 else np.log(1 - ri + 1e-4)
+                
+            Jnll.append( -Jsur / M ) # TODO evaluate the current NLL loss
             plt.figure(1); plt.plot(Jnll,'b-',J01,'r-'); plt.draw();    # plot losses
             if N==2: plt.figure(2); self.plotBoundary(X,Y); plt.draw(); # & predictor if 2D
             plt.pause(.01);                    # let OS draw the plot
 
             ## For debugging: you may want to print current parameters & losses
-            # print self.theta, ' => ', Jnll[-1], ' / ', J01[-1]
+            print (self.theta, ' => ', Jnll[-1], ' / ', J01[-1])
             # raw_input()   # pause for keystroke
-
-            # TODO check stopping criteria: exit if exceeded # of epochs ( > stopEpochs)
-            done = NotImplementedError;   # or if Jnll not changing between epochs ( < stopTol )
+            #
+            if epoch > 1:
+                if epoch > stopEpochs or np.abs(Jnll[-2] - Jnll[-1]) < stopTol:
+                    done = True;  
 
 
 ################################################################################
